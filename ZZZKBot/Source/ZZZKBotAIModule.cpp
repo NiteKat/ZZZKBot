@@ -36,6 +36,12 @@
 using namespace BWAPI;
 using namespace Filter;
 
+ZZZKBotAIModule::ZZZKBotAIModule()
+  : Broodwar(BWAPIClient)
+{
+  ;
+}
+
 void ZZZKBotAIModule::onStart()
 {
     // Print the map name.
@@ -55,9 +61,9 @@ void ZZZKBotAIModule::onStart()
     Broodwar->setCommandOptimizationLevel(1);
 
     // Speedups (including disabling the GUI) for automated play.
-    //BWAPI::Broodwar->setLocalSpeed(0);
-    //BWAPI::Broodwar->setFrameSkip(16);   // Not needed if using setGUI(false).
-    //BWAPI::Broodwar->setGUI(false);
+    //Broodwar->setLocalSpeed(0);
+    //Broodwar->setFrameSkip(16);   // Not needed if using setGUI(false).
+    //Broodwar->setGUI(false);
 
     // Check if this is a replay
     if (Broodwar->isReplay())
@@ -924,7 +930,7 @@ void ZZZKBotAIModule::onFrame()
     if (mainBase == nullptr || !mainBase->exists())
     {
         mainBase =
-            BWAPI::Broodwar->getClosestUnit(
+            Broodwar->getClosestUnit(
                 (myStartRoughPos != BWAPI::Positions::Unknown ?
                  myStartRoughPos :
                  BWAPI::Position((Broodwar->mapWidth() * BWAPI::TILEPOSITION_SCALE) / 2, (Broodwar->mapHeight() * BWAPI::TILEPOSITION_SCALE) / 2)),
@@ -970,7 +976,7 @@ void ZZZKBotAIModule::onFrame()
             versusSignifierStr;
 
         const std::string configFileExtension = "cfg";
-        const std::string configFilePath = AIDirPath + Broodwar->self()->getName() + "." + configFileExtension;
+        const std::string configFilePath = AIDirPath + Broodwar->self()->getName().data() + "." + configFileExtension;
 
         const std::string dataFileExtension = "dat";
 
@@ -1015,7 +1021,7 @@ void ZZZKBotAIModule::onFrame()
         {
             if (p->isEnemy(Broodwar->self()))
             {
-                enemyPlayerID = p->getID();
+                enemyPlayerID = static_cast<int>(p->getID());
                 enemyPlayerType = p->getType();
                 enemyRaceInit = p->getRace();
                 enemyRaceScouted = enemyRaceInit;
@@ -1369,8 +1375,8 @@ void ZZZKBotAIModule::onFrame()
                                 continue;
                             }
                         }
-                        if (tmpIsCompleteMapInformationEnabled &&
-                            !Broodwar->isFlagEnabled(BWAPI::Flag::CompleteMapInformation))
+                        if (tmpIsCompleteMapInformationEnabled) //&&
+                            //!Broodwar->isFlagEnabled(BWAPI::Flag::CompleteMapInformation))
                         {
                             continue;
                         }
@@ -2136,14 +2142,13 @@ void ZZZKBotAIModule::onFrame()
                 oss << __DATE__ << delim;
                 oss << __TIME__ << delim;
                 oss << Broodwar->getClientVersion() << delim;
-                oss << Broodwar->getRevision() << delim;
                 oss << Broodwar->isDebug() << delim;
                 oss << myBotNameHardCoded << delim;
                 oss << Broodwar->getPlayers().size() << delim;
                 oss << Broodwar->enemies().size() << delim;
                 oss << Broodwar->allies().size() << delim;
                 oss << Broodwar->observers().size() << delim;
-                oss << Broodwar->self()->getID() << delim;
+                oss << static_cast<int>(Broodwar->self()->getID()) << delim;
                 oss << Broodwar->self()->getType() << delim;
                 // TODO: player names may contain unusual characters, so sanitize by stripping or replacing them
                 // (esp. tabs because I use tab as a delimiter).
@@ -2194,8 +2199,8 @@ void ZZZKBotAIModule::onFrame()
                 oss << Broodwar->mapHash() << delim;
                 oss << Broodwar->mapWidth() << delim;
                 oss << Broodwar->mapHeight() << delim;
-                oss << Broodwar->isFlagEnabled(BWAPI::Flag::CompleteMapInformation) << delim;
-                oss << Broodwar->isFlagEnabled(BWAPI::Flag::UserInput) << delim;
+                //oss << Broodwar->isFlagEnabled(BWAPI::Flag::CompleteMapInformation) << delim;
+                //oss << Broodwar->isFlagEnabled(BWAPI::Flag::UserInput) << delim;
                 oss << Broodwar->getStartLocations().size() << delim;
                 // May be useful for scripts that do lookups based on possible start locations.
                 for (const BWAPI::TilePosition loc : Broodwar->getStartLocations())
@@ -2210,7 +2215,7 @@ void ZZZKBotAIModule::onFrame()
                 oss << Broodwar->isBattleNet() << delim;
                 oss << Broodwar->isReplay() << delim;
                 oss << Broodwar->getGameType() << delim;
-                oss << Broodwar->getLatency() << delim;
+                //oss << Broodwar->getLatency() << delim;
                 oss << Broodwar->getLatencyFrames() << delim;
                 oss << Broodwar->getLatencyTime() << delim;
                 oss << Broodwar->isLatComEnabled() << delim;
@@ -2376,7 +2381,7 @@ void ZZZKBotAIModule::onFrame()
     // When Unknown enemy race becomes known, append some info to a file for the enemy in the write folder.
     if (enemyPlayerID >= 0 && enemyRaceInit == BWAPI::Races::Unknown)
     {
-        const BWAPI::Player enemyPlayer = Broodwar->getPlayer(enemyPlayerID);
+        const BWAPI::Player enemyPlayer = Broodwar->getPlayer(static_cast<PlayerID>(enemyPlayerID));
         if (enemyPlayer)
         {
             const BWAPI::Race enemyRaceScoutedNew = enemyPlayer->getRace();
@@ -2433,15 +2438,15 @@ void ZZZKBotAIModule::onFrame()
     }
 
     const int transitionOutOf4PoolFrameCountThresh = (ss.isSpeedlingBO || ss.isHydraRushBO || !ss.is4PoolBO) ? 0 : (8 * 60 * 24);
-
+    const int frameCount = Broodwar->getFrameCount();
     // We ignore stolen gas, at least until a time near when we plan to make an extractor.
     auto isNotStolenGas =
-        [&mainBaseAuto, &transitionOutOf4PoolFrameCountThresh](const Unit& tmpUnit)
+        [&mainBaseAuto, &transitionOutOf4PoolFrameCountThresh, &frameCount](const Unit& tmpUnit)
         {
             return
                 !tmpUnit->getType().isRefinery() ||
                 mainBaseAuto == nullptr ||
-                Broodwar->getFrameCount() + (60 * 24) >= transitionOutOf4PoolFrameCountThresh ||
+                frameCount + (60 * 24) >= transitionOutOf4PoolFrameCountThresh ||
                 mainBaseAuto->getDistance(tmpUnit) > 256;
         };
 
@@ -2661,8 +2666,8 @@ void ZZZKBotAIModule::onFrame()
 
         if (u->getType() != BWAPI::UnitTypes::Zerg_Overlord)
         {
-            const int tmpX = (int) u->getClientInfo(scoutingTargetStartLocXInd);
-            const int tmpY = (int) u->getClientInfo(scoutingTargetStartLocYInd);
+            const int tmpX = (int) getClientInfo(u, scoutingTargetStartLocXInd);
+            const int tmpY = (int) getClientInfo(u, scoutingTargetStartLocYInd);
             if (tmpX != 0 || tmpY != 0)
             {
                 ++numNonOverlordUnitsTargetingStartLoc[TilePosition(tmpX, tmpY)];
@@ -2781,13 +2786,14 @@ void ZZZKBotAIModule::onFrame()
     }
 
     // Checks whether BWAPI already has a command pending to be executed for the specified unit.
+    const auto latencyFrames = Broodwar->getLatencyFrames();
     auto noCmdPending =
-        [](const BWAPI::Unit& tmpUnit)
+        [&frameCount, &latencyFrames](const BWAPI::Unit& tmpUnit)
         {
             return
                 (bool)
                 (tmpUnit->getLastCommand().getType() == BWAPI::UnitCommandTypes::None ||
-                 Broodwar->getFrameCount() >= tmpUnit->getLastCommandFrame() + (Broodwar->getLatencyFrames() > 2 ? Broodwar->getLatencyFrames() - (tmpUnit->getLastCommandFrame() % 2) : Broodwar->getLatencyFrames()));
+                 frameCount >= tmpUnit->getLastCommandFrame() + (latencyFrames > 2 ? latencyFrames - (tmpUnit->getLastCommandFrame() % 2) : latencyFrames));
         };
 
     // Logic to make a building.
@@ -2796,8 +2802,9 @@ void ZZZKBotAIModule::onFrame()
     // Note: geyser is only used when building an extractor.
     static BWAPI::Unit geyser = nullptr;
     auto geyserAuto = geyser;
+    auto &Broodwarg = Broodwar;
     auto makeUnit =
-        [&mainBaseAuto, &allUnitCount, &getRoughPos, &gathererToResourceMapAuto, &resourceToGathererMapAuto, &lowLifeDrone, &geyserAuto, &noCmdPending](
+        [&mainBaseAuto, &allUnitCount, &getRoughPos, &gathererToResourceMapAuto, &resourceToGathererMapAuto, &lowLifeDrone, &geyserAuto, &noCmdPending, &frameCount, &Broodwarg](
             const BWAPI::UnitType& buildingType,
             BWAPI::Unit& reservedBuilder,
             BWAPI::TilePosition& targetBuildLoc,
@@ -2863,7 +2870,7 @@ void ZZZKBotAIModule::onFrame()
                     if (targetBuildLoc == BWAPI::TilePositions::None ||
                         targetBuildLoc == BWAPI::TilePositions::Unknown ||
                         targetBuildLoc == BWAPI::TilePositions::Invalid ||
-                        Broodwar->getFrameCount() >= frameLastCheckedBuildLoc + checkBuildLocFreqFrames)
+                        frameCount >= frameLastCheckedBuildLoc + checkBuildLocFreqFrames)
                     {
                         if (buildingType == BWAPI::UnitTypes::Zerg_Extractor && mainBaseAuto)
                         {
@@ -2880,10 +2887,10 @@ void ZZZKBotAIModule::onFrame()
                         }
                         else
                         {
-                            targetBuildLoc = Broodwar->getBuildLocation(buildingType, builder->getTilePosition());
+                            targetBuildLoc = Broodwarg->getBuildLocation(buildingType, builder->getTilePosition());
                         }
 
-                        frameLastCheckedBuildLoc = Broodwar->getFrameCount();
+                        frameLastCheckedBuildLoc = frameCount;
                     }
 
                     if (targetBuildLoc != BWAPI::TilePositions::None &&
@@ -2921,7 +2928,7 @@ void ZZZKBotAIModule::onFrame()
                             }
                         }
                         // Not enough minerals or it is not available (e.g. UMS game type).
-                        else if (buildingType == BWAPI::UnitTypes::Zerg_Spawning_Pool && Broodwar->self()->isUnitAvailable(buildingType))
+                        else if (buildingType == BWAPI::UnitTypes::Zerg_Spawning_Pool && Broodwarg->self()->isUnitAvailable(buildingType))
                         {
                             // Not enough minerals, so send a worker out to the build location so it is on or nearer the
                             // position when we have enough minerals.
@@ -3858,19 +3865,19 @@ void ZZZKBotAIModule::onFrame()
                     // If idle or were targeting an enemy unit or are no longer carrying minerals...
                     const bool isNewCmdNeeded = u->isIdle() || (u->getTarget() && u->getTarget()->getPlayer() && u->getTarget()->getPlayer()->isEnemy(Broodwar->self()));
                     if (isNewCmdNeeded ||
-                        (!u->isCarryingMinerals() && (int) u->getClientInfo(wasJustCarryingMineralsInd) == wasJustCarryingMineralsTrueVal))
+                        (!u->isCarryingMinerals() && (int) getClientInfo(u, wasJustCarryingMineralsInd) == wasJustCarryingMineralsTrueVal))
                     {
-                        if (!u->isCarryingMinerals() && (int) u->getClientInfo(wasJustCarryingMineralsInd) == wasJustCarryingMineralsTrueVal)
+                        if (!u->isCarryingMinerals() && (int) getClientInfo(u, wasJustCarryingMineralsInd) == wasJustCarryingMineralsTrueVal)
                         {
                             // Reset indicator about carrying minerals because we aren't carrying minerals now.
                             // Note: setClientInfo may also be called at the end of this and some other frames
                             // (but not necessarily at the end of all frames because there's logic at the start
                             // of each frame to return if the frame count modulo is a certain value).
-                            u->setClientInfo(wasJustCarryingMineralsDefaultVal, wasJustCarryingMineralsInd);
-                            u->setClientInfo(Broodwar->getFrameCount(), frameLastReturnedMineralsInd);
+                            setClientInfo(u, wasJustCarryingMineralsDefaultVal, wasJustCarryingMineralsInd);
+                            setClientInfo(u, Broodwar->getFrameCount(), frameLastReturnedMineralsInd);
                         }
 
-                        if (u != scoutingWorker || (int) u->getClientInfo(frameLastReturnedMineralsInd) == 0)
+                        if (u != scoutingWorker || (int) getClientInfo(u, frameLastReturnedMineralsInd) == 0)
                         {
                             // Order workers carrying a resource to return them to the center,
                             // otherwise find a mineral patch to harvest.
@@ -3900,7 +3907,7 @@ void ZZZKBotAIModule::onFrame()
                 }
             }
 
-            if (u != scoutingWorker || (int) u->getClientInfo(frameLastReturnedMineralsInd) == 0)
+            if (u != scoutingWorker || (int) getClientInfo(u, frameLastReturnedMineralsInd) == 0)
             {
                 continue;
             }
@@ -4110,7 +4117,7 @@ void ZZZKBotAIModule::onFrame()
                         if (supplyProviderType.isBuilding())
                         {
                             const TilePosition targetBuildLoc = Broodwar->getBuildLocation(supplyProviderType, supplyBuilder->getTilePosition());
-                            if (targetBuildLoc && supplyBuilder->canBuild(supplyProviderType, targetBuildLoc))
+                            if (Broodwar->isValid(targetBuildLoc) && supplyBuilder->canBuild(supplyProviderType, targetBuildLoc))
                             {
                                 // Order the builder to construct the supply structure
                                 supplyBuilder->build(supplyProviderType, targetBuildLoc);
@@ -4136,13 +4143,13 @@ void ZZZKBotAIModule::onFrame()
                  u->canMove() &&
                  !u->isFlying() &&
                  !u->isAttacking() &&
-                 (int) u->getClientInfo(frameLastStoppedInd) + (3 * 24) < Broodwar->getFrameCount() &&
-                 (int) u->getClientInfo(frameLastAttackingInd) + std::max(Broodwar->self()->weaponDamageCooldown(u->getType()), u->getType().airWeapon().damageCooldown()) + (3 * 24) < Broodwar->getFrameCount() &&
-                 (int) u->getClientInfo(frameLastChangedPosInd) > 0 && (int) u->getClientInfo(frameLastChangedPosInd) + (3 * 24) < Broodwar->getFrameCount() &&
+                 (int) getClientInfo(u, frameLastStoppedInd) + (3 * 24) < Broodwar->getFrameCount() &&
+                 (int) getClientInfo(u, frameLastAttackingInd) + std::max(Broodwar->self()->weaponDamageCooldown(u->getType()), u->getType().airWeapon().damageCooldown()) + (3 * 24) < Broodwar->getFrameCount() &&
+                 (int) getClientInfo(u, frameLastChangedPosInd) > 0 && (int) getClientInfo(u, frameLastChangedPosInd) + (3 * 24) < Broodwar->getFrameCount() &&
                  noCmdPending(u))
         {
             u->stop();
-            u->setClientInfo(Broodwar->getFrameCount(), frameLastStoppedInd);
+            setClientInfo(u, Broodwar->getFrameCount(), frameLastStoppedInd);
             continue;
         }
         else if (u->canAttack() &&
@@ -4240,7 +4247,7 @@ void ZZZKBotAIModule::onFrame()
                      // TODO: re-enable Terran_Comsat_Station after add any
                      // logic to produce cloaked units.
                      GetType == BWAPI::UnitTypes::Terran_Comsat_Station*/) &&
-                    [&u](Unit& tmpUnit)
+                    [&u, &Broodwarg](Unit& tmpUnit)
                     {
                         return
                             u->canAttack(tmpUnit) &&
@@ -4258,7 +4265,7 @@ void ZZZKBotAIModule::onFrame()
                                                                         112)
                                                                + 32) &&
                              tmpUnit->getClosestUnit(
-                                 Exists && GetPlayer == Broodwar->self(),
+                                 Exists && GetPlayer == Broodwarg->self(),
                                  (int) (std::max(std::max((!u->isFlying() ? tmpUnit->getPlayer()->weaponMaxRange(tmpUnit->getType().groundWeapon()) : tmpUnit->getPlayer()->weaponMaxRange(tmpUnit->getType().airWeapon())),
                                                           (!tmpUnit->isFlying() ? u->getPlayer()->weaponMaxRange(u->getType().groundWeapon()) : u->getPlayer()->weaponMaxRange(u->getType().airWeapon()))),
                                                  112))) != nullptr);
@@ -4376,12 +4383,12 @@ void ZZZKBotAIModule::onFrame()
                         Broodwar->getBestUnit(
                             getBestEnemyThreatUnitLambda,
                             IsEnemy && IsVisible && IsDetected && Exists && IsWorker &&
-                            [&u, &closestEnemyUnliftedBuildingAnywhere](Unit& tmpUnit)
+                            [&u, &closestEnemyUnliftedBuildingAnywhere, &Broodwarg](Unit& tmpUnit)
                             {
                                 return u->canAttack(tmpUnit) &&
                                     tmpUnit->getDistance(u) <= (int) (224 + 32) &&
-                                    tmpUnit->getDistance(closestEnemyUnliftedBuildingAnywhere) <= Broodwar->self()->weaponMaxRange(u->getType().groundWeapon()) + 224 &&
-                                    tmpUnit->getClosestUnit(Exists && GetPlayer == Broodwar->self(), (int) (224)) != nullptr;
+                                    tmpUnit->getDistance(closestEnemyUnliftedBuildingAnywhere) <= Broodwarg->self()->weaponMaxRange(u->getType().groundWeapon()) + 224 &&
+                                    tmpUnit->getClosestUnit(Exists && GetPlayer == Broodwarg->self(), (int) (224)) != nullptr;
                             },
                             u->getPosition(),
                             std::max(u->getType().dimensionLeft(), std::max(u->getType().dimensionUp(), std::max(u->getType().dimensionRight(), u->getType().dimensionDown()))) + 224 + 32);
@@ -4459,13 +4466,13 @@ void ZZZKBotAIModule::onFrame()
                              // TODO: re-enable Terran_Comsat_Station after add any
                              // logic to produce cloaked units.
                              GetType == BWAPI::UnitTypes::Terran_Comsat_Station*/) &&
-                            [&u, &closestEnemyUnliftedBuildingAnywhere](Unit& tmpUnit)
+                            [&u, &closestEnemyUnliftedBuildingAnywhere, &Broodwarg](Unit& tmpUnit)
                             {
                                 return
                                     u->canAttack(tmpUnit) &&
                                     (tmpUnit == closestEnemyUnliftedBuildingAnywhere ||
                                      tmpUnit->getDistance(closestEnemyUnliftedBuildingAnywhere) <=
-                                         (!tmpUnit->isFlying() ? Broodwar->self()->weaponMaxRange(u->getType().groundWeapon()) : Broodwar->self()->weaponMaxRange(u->getType().airWeapon()))
+                                         (!tmpUnit->isFlying() ? Broodwarg->self()->weaponMaxRange(u->getType().groundWeapon()) : Broodwar->self()->weaponMaxRange(u->getType().airWeapon()))
                                          + 224);
                             },
                             u->getPosition(),
@@ -4508,13 +4515,13 @@ void ZZZKBotAIModule::onFrame()
                         Broodwar->getBestUnit(
                             getBestEnemyThreatUnitLambda,
                             IsEnemy && IsVisible && IsDetected && Exists && !IsWorker &&
-                            [&u, &closestEnemyUnliftedBuildingAnywhere](Unit& tmpUnit)
+                            [&u, &closestEnemyUnliftedBuildingAnywhere, &Broodwarg](Unit& tmpUnit)
                             {
                                 return
                                     u->canAttack(tmpUnit) &&
                                     (tmpUnit == closestEnemyUnliftedBuildingAnywhere ||
                                      tmpUnit->getDistance(closestEnemyUnliftedBuildingAnywhere) <=
-                                         (!tmpUnit->isFlying() ? Broodwar->self()->weaponMaxRange(u->getType().groundWeapon()) : Broodwar->self()->weaponMaxRange(u->getType().airWeapon()))
+                                         (!tmpUnit->isFlying() ? Broodwarg->self()->weaponMaxRange(u->getType().groundWeapon()) : Broodwar->self()->weaponMaxRange(u->getType().airWeapon()))
                                          + 224);
                             },
                             u->getPosition(),
@@ -4591,8 +4598,8 @@ void ZZZKBotAIModule::onFrame()
 
             if (targetStartLocs.empty() && !unscoutedOtherStartLocs.empty())
             {
-                const int tmpX = (int) u->getClientInfo(scoutingTargetStartLocXInd);
-                const int tmpY = (int) u->getClientInfo(scoutingTargetStartLocYInd);
+                const int tmpX = (int) getClientInfo(u, scoutingTargetStartLocXInd);
+                const int tmpY = (int) getClientInfo(u, scoutingTargetStartLocYInd);
                 if ((tmpX != 0 || tmpY != 0) &&
                     unscoutedOtherStartLocs.find(TilePosition(tmpX, tmpY)) != unscoutedOtherStartLocs.end())
                 {
@@ -4636,8 +4643,8 @@ void ZZZKBotAIModule::onFrame()
 
             if (targetPos == BWAPI::Positions::Unknown && targetStartLocs.empty())
             {
-                const int tmpX = (int) u->getClientInfo(scoutingTargetPosXInd);
-                const int tmpY = (int) u->getClientInfo(scoutingTargetPosYInd);
+                const int tmpX = (int) getClientInfo(u, scoutingTargetPosXInd);
+                const int tmpY = (int) getClientInfo(u, scoutingTargetPosYInd);
                 // If en-route to a position that isn't visible or isn't clear then continue going there.
                 // Occasionally re-randomize late-game cos the unit may not have a path to get there.
                 if ((tmpX != 0 || tmpY != 0) &&
@@ -4746,13 +4753,13 @@ void ZZZKBotAIModule::onFrame()
                     {
                         if (locIfAny == BWAPI::TilePositions::None)
                         {
-                            u->setClientInfo(pos.x, scoutingTargetPosXInd);
-                            u->setClientInfo(pos.y, scoutingTargetPosYInd);
+                            setClientInfo(u, pos.x, scoutingTargetPosXInd);
+                            setClientInfo(u, pos.y, scoutingTargetPosYInd);
                         }
                         else
                         {
-                            u->setClientInfo(locIfAny.x, scoutingTargetStartLocXInd);
-                            u->setClientInfo(locIfAny.y, scoutingTargetStartLocYInd);
+                            setClientInfo(u, locIfAny.x, scoutingTargetStartLocXInd);
+                            setClientInfo(u, locIfAny.y, scoutingTargetStartLocYInd);
                         }
 
                         // Using a continue statement because we have just issued a command to this unit.
@@ -4838,8 +4845,8 @@ void ZZZKBotAIModule::onFrame()
             if (targetPos == BWAPI::Positions::Unknown && targetStartLoc == BWAPI::TilePositions::Unknown && !unscoutedOtherStartLocs.empty() &&
                 ((ss.isSpeedlingBO || ss.isHydraRushBO) || Broodwar->getFrameCount() < (5 * 60 * 24)))
             {
-                const int tmpX = (int) u->getClientInfo(scoutingTargetStartLocXInd);
-                const int tmpY = (int) u->getClientInfo(scoutingTargetStartLocYInd);
+                const int tmpX = (int) getClientInfo(u, scoutingTargetStartLocXInd);
+                const int tmpY = (int) getClientInfo(u, scoutingTargetStartLocYInd);
                 if ((tmpX != 0 || tmpY != 0) &&
                     unscoutedOtherStartLocs.find(TilePosition(tmpX, tmpY)) != unscoutedOtherStartLocs.end())
                 {
@@ -4902,14 +4909,14 @@ void ZZZKBotAIModule::onFrame()
                 {
                     if (targetStartLoc == BWAPI::TilePositions::Unknown)
                     {
-                        u->setClientInfo(targetPos.x, scoutingTargetPosXInd);
-                        u->setClientInfo(targetPos.y, scoutingTargetPosYInd);
+                        setClientInfo(u, targetPos.x, scoutingTargetPosXInd);
+                        setClientInfo(u, targetPos.y, scoutingTargetPosYInd);
                     }
                     else
                     {
                         possibleOverlordScoutLocs.erase(targetStartLoc);
-                        u->setClientInfo(targetStartLoc.x, scoutingTargetStartLocXInd);
-                        u->setClientInfo(targetStartLoc.y, scoutingTargetStartLocYInd);
+                        setClientInfo(u, targetStartLoc.x, scoutingTargetStartLocXInd);
+                        setClientInfo(u, targetStartLoc.y, scoutingTargetStartLocYInd);
                     }
 
                     // Using a continue statement because we have just issued a command to this unit.
@@ -5182,47 +5189,47 @@ void ZZZKBotAIModule::onFrame()
         {
             const int newX = u->getPosition().x;
             const int newY = u->getPosition().y;
-            if ((int) u->getClientInfo(posXInd) != newX || (int) u->getClientInfo(posYInd) != newY)
+            if ((int) getClientInfo(u, posXInd) != newX || (int) getClientInfo(u, posYInd) != newY)
             {
-                u->setClientInfo(Broodwar->getFrameCount(), frameLastChangedPosInd);
+                setClientInfo(u, Broodwar->getFrameCount(), frameLastChangedPosInd);
             }
     
-            u->setClientInfo(newX, posXInd);
-            u->setClientInfo(newY, posYInd);
+            setClientInfo(u, newX, posXInd);
+            setClientInfo(u, newY, posYInd);
 
             if (u->isAttacking())
             {
-                u->setClientInfo(Broodwar->getFrameCount(), frameLastAttackingInd);
+                setClientInfo(u, Broodwar->getFrameCount(), frameLastAttackingInd);
             }
 
             if (u->isAttackFrame())
             {
-                u->setClientInfo(Broodwar->getFrameCount(), frameLastAttackFrameInd);
+                setClientInfo(u, Broodwar->getFrameCount(), frameLastAttackFrameInd);
             }
 
             if (u->isStartingAttack())
             {
-                u->setClientInfo(Broodwar->getFrameCount(), frameLastStartingAttackInd);
+                setClientInfo(u, Broodwar->getFrameCount(), frameLastStartingAttackInd);
             }
     
             if (u->getType().isWorker() && u->isCarryingMinerals())
             {
-                u->setClientInfo(wasJustCarryingMineralsTrueVal, wasJustCarryingMineralsInd);
+                setClientInfo(u, wasJustCarryingMineralsTrueVal, wasJustCarryingMineralsInd);
             }
 
-            if (u->getGroundWeaponCooldown() > (int) u->getClientInfo(lastGroundWeaponCooldownInd))
+            if (u->getGroundWeaponCooldown() > (int) getClientInfo(u, lastGroundWeaponCooldownInd))
             {
-                u->setClientInfo(u->getGroundWeaponCooldown(), lastPeakGroundWeaponCooldownInd);
-                u->setClientInfo(Broodwar->getFrameCount(), lastPeakGroundWeaponCooldownFrameInd);
+                setClientInfo(u, u->getGroundWeaponCooldown(), lastPeakGroundWeaponCooldownInd);
+                setClientInfo(u, Broodwar->getFrameCount(), lastPeakGroundWeaponCooldownFrameInd);
             }
-            u->setClientInfo(u->getGroundWeaponCooldown(), lastGroundWeaponCooldownInd);
+            setClientInfo(u, u->getGroundWeaponCooldown(), lastGroundWeaponCooldownInd);
             
-            if (u->getAirWeaponCooldown() > (int) u->getClientInfo(lastAirWeaponCooldownInd))
+            if (u->getAirWeaponCooldown() > (int) getClientInfo(u, lastAirWeaponCooldownInd))
             {
-                u->setClientInfo(u->getAirWeaponCooldown(), lastPeakAirWeaponCooldownInd);
-                u->setClientInfo(Broodwar->getFrameCount(), lastPeakAirWeaponCooldownFrameInd);
+                setClientInfo(u, u->getAirWeaponCooldown(), lastPeakAirWeaponCooldownInd);
+                setClientInfo(u, Broodwar->getFrameCount(), lastPeakAirWeaponCooldownFrameInd);
             }
-            u->setClientInfo(u->getAirWeaponCooldown(), lastAirWeaponCooldownInd);
+            setClientInfo(u, u->getAirWeaponCooldown(), lastAirWeaponCooldownInd);
         }
     }
 }
@@ -5257,7 +5264,7 @@ void ZZZKBotAIModule::onPlayerLeft(BWAPI::Player player)
     // for whatever reason, e.g. perhaps it could happen while the game is paused/unpaused?
     // Better safe than sorry because we do not want to spam the output file while the game is
     // paused.
-    static std::set<int> playerIDsLeft;
+    static std::set<PlayerID> playerIDsLeft;
     if (playerIDsLeft.find(player->getID()) != playerIDsLeft.end())
     {
         return;
@@ -5293,7 +5300,7 @@ void ZZZKBotAIModule::onPlayerLeft(BWAPI::Player player)
         }
         oss << delim;
 
-        oss << player->getID() << delim;
+        oss << static_cast<int>(player->getID()) << delim;
         // TODO: player names may contain unusual characters, so sanitize by stripping or replacing them
         // (esp. tabs because I use tab as a delimiter).
         oss << player->getName() << delim;
@@ -5316,7 +5323,7 @@ void ZZZKBotAIModule::onPlayerLeft(BWAPI::Player player)
 void ZZZKBotAIModule::onNukeDetect(BWAPI::Position target)
 {
     // Check if the target is a valid position
-    if (target)
+    if (Broodwar->isValid(target))
     {
         // if so, print the location of the nuclear strike target
         Broodwar << "Nuclear Launch Detected at " << target << std::endl;
@@ -5355,7 +5362,7 @@ void ZZZKBotAIModule::onUnitCreate(BWAPI::Unit unit)
             int seconds = Broodwar->getFrameCount()/24;
             int minutes = seconds/60;
             seconds %= 60;
-            Broodwar->sendText("%.2d:%.2d: %s creates a %s", minutes, seconds, unit->getPlayer()->getName().c_str(), unit->getType().c_str());
+            Broodwar->sendText("%.2d:%.2d: %s creates a %s", minutes, seconds, unit->getPlayer()->getName().data(), unit->getType().c_str());
         }
     }
 }
@@ -5374,7 +5381,7 @@ void ZZZKBotAIModule::onUnitMorph(BWAPI::Unit unit)
             int seconds = Broodwar->getFrameCount()/24;
             int minutes = seconds/60;
             seconds %= 60;
-            Broodwar->sendText("%.2d:%.2d: %s morphs a %s", minutes, seconds, unit->getPlayer()->getName().c_str(), unit->getType().c_str());
+            Broodwar->sendText("%.2d:%.2d: %s morphs a %s", minutes, seconds, unit->getPlayer()->getName().data(), unit->getType().c_str());
         }
     }
 }

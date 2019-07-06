@@ -31,29 +31,33 @@
 #include <set>
 #include <ctime>
 
+#include "..\Frontend\BWAPIFrontendClient\ProtoClient.h"
+
 // Reminder: don't use "Broodwar" in any global class constructor!
 
-class ZZZKBotAIModule : public BWAPI::AIModule
+class ZZZKBotAIModule
 {
 public:
-    // Virtual functions for callbacks, leave these as they are.
-    virtual void onStart();
-    virtual void onEnd(bool isWinner);
-    virtual void onFrame();
-    virtual void onSendText(std::string text);
-    virtual void onReceiveText(BWAPI::Player player, std::string text);
-    virtual void onPlayerLeft(BWAPI::Player player);
-    virtual void onNukeDetect(BWAPI::Position target);
-    virtual void onUnitDiscover(BWAPI::Unit unit);
-    virtual void onUnitEvade(BWAPI::Unit unit);
-    virtual void onUnitShow(BWAPI::Unit unit);
-    virtual void onUnitHide(BWAPI::Unit unit);
-    virtual void onUnitCreate(BWAPI::Unit unit);
-    virtual void onUnitDestroy(BWAPI::Unit unit);
-    virtual void onUnitMorph(BWAPI::Unit unit);
-    virtual void onUnitRenegade(BWAPI::Unit unit);
-    virtual void onSaveGame(std::string gameName);
-    virtual void onUnitComplete(BWAPI::Unit unit);
+  ZZZKBotAIModule();
+
+    // functions for callbacks, leave these as they are.
+    void onStart();
+    void onEnd(bool isWinner);
+    void onFrame();
+    void onSendText(std::string text);
+    void onReceiveText(BWAPI::Player player, std::string text);
+    void onPlayerLeft(BWAPI::Player player);
+    void onNukeDetect(BWAPI::Position target);
+    void onUnitDiscover(BWAPI::Unit unit);
+    void onUnitEvade(BWAPI::Unit unit);
+    void onUnitShow(BWAPI::Unit unit);
+    void onUnitHide(BWAPI::Unit unit);
+    void onUnitCreate(BWAPI::Unit unit);
+    void onUnitDestroy(BWAPI::Unit unit);
+    void onUnitMorph(BWAPI::Unit unit);
+    void onUnitRenegade(BWAPI::Unit unit);
+    void onSaveGame(std::string gameName);
+    void onUnitComplete(BWAPI::Unit unit);
     // Everything below this line is safe to modify.
 
     const std::string startOfLineSentinel = "||->";
@@ -72,6 +76,28 @@ public:
     std::string enemyWriteFilePath;
 
     std::time_t timerAtGameStart = std::time(nullptr);
+
+    BWAPI::ProtoClient BWAPIClient;
+    BWAPI::Game Broodwar;
+    std::map<BWAPI::Unit, std::map<int, void *>> unitInfo;
+
+    void *getClientInfo(BWAPI::Unit unit, int key = 0) {
+      // Retrieve iterator to element at index
+      auto result = unitInfo[unit].find(key);
+
+      // Return a default value if not found
+      if (result == unitInfo[unit].end())
+        return nullptr;
+
+      // return the desired value
+      return result->second;
+    }
+
+    template < typename V >
+    void setClientInfo(BWAPI::Unit unit, const V &clientInfo, int key = 0)
+    {
+      unitInfo[unit][key] = (void*)clientInfo;
+    };
 
     struct StratSettings
     {
