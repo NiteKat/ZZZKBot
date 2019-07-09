@@ -2802,9 +2802,8 @@ void ZZZKBotAIModule::onFrame()
     // Note: geyser is only used when building an extractor.
     static BWAPI::Unit geyser = nullptr;
     auto geyserAuto = geyser;
-    auto &Broodwarg = Broodwar;
     auto makeUnit =
-        [&mainBaseAuto, &allUnitCount, &getRoughPos, &gathererToResourceMapAuto, &resourceToGathererMapAuto, &lowLifeDrone, &geyserAuto, &noCmdPending, &frameCount, &Broodwarg](
+        [&mainBaseAuto, &allUnitCount, &getRoughPos, &gathererToResourceMapAuto, &resourceToGathererMapAuto, &lowLifeDrone, &geyserAuto, &noCmdPending, &frameCount, this](
             const BWAPI::UnitType& buildingType,
             BWAPI::Unit& reservedBuilder,
             BWAPI::TilePosition& targetBuildLoc,
@@ -2887,7 +2886,7 @@ void ZZZKBotAIModule::onFrame()
                         }
                         else
                         {
-                            targetBuildLoc = Broodwarg->getBuildLocation(buildingType, builder->getTilePosition());
+                            targetBuildLoc = Broodwar->getBuildLocation(buildingType, builder->getTilePosition());
                         }
 
                         frameLastCheckedBuildLoc = frameCount;
@@ -2928,7 +2927,7 @@ void ZZZKBotAIModule::onFrame()
                             }
                         }
                         // Not enough minerals or it is not available (e.g. UMS game type).
-                        else if (buildingType == BWAPI::UnitTypes::Zerg_Spawning_Pool && Broodwarg->self()->isUnitAvailable(buildingType))
+                        else if (buildingType == BWAPI::UnitTypes::Zerg_Spawning_Pool && Broodwar->self()->isUnitAvailable(buildingType))
                         {
                             // Not enough minerals, so send a worker out to the build location so it is on or nearer the
                             // position when we have enough minerals.
@@ -3212,7 +3211,7 @@ void ZZZKBotAIModule::onFrame()
                                 return !tmpUnit->isConstructing() && noCmdPending(tmpUnit) && tmpUnit->canGather(u);
                             };
 
-                        BWAPI::Unit newGasGatherer = newGasGatherer = u->getClosestUnit(GetType == BWAPI::UnitTypes::Zerg_Drone && IsIdle && !IsCarryingSomething && IsOwned && isAvailableToGatherFrom);
+                        BWAPI::Unit newGasGatherer = u->getClosestUnit(GetType == BWAPI::UnitTypes::Zerg_Drone && IsIdle && !IsCarryingSomething && IsOwned && isAvailableToGatherFrom);
                         if (newGasGatherer == nullptr)
                             newGasGatherer = u->getClosestUnit(GetType == BWAPI::UnitTypes::Zerg_Drone && IsGatheringMinerals && !IsCarryingSomething && IsOwned && isAvailableToGatherFrom);
                         if (newGasGatherer == nullptr)
@@ -3229,8 +3228,18 @@ void ZZZKBotAIModule::onFrame()
                                 gathererToResourceMap.erase(resourceToGathererMap.at(u));
                             }
         
-                            resourceToGathererMap[u] = newGasGatherer;
-                            gathererToResourceMap[newGasGatherer] = u;
+                            auto itr1 = resourceToGathererMap.find(newGasGatherer);
+                            if (itr1 == resourceToGathererMap.end())
+                              resourceToGathererMap.insert(std::make_pair(u, newGasGatherer));
+                            else
+                              itr1->second = newGasGatherer;
+                            //resourceToGathererMap[u] = newGasGatherer;
+                            auto itr2 = gathererToResourceMap.find(u);
+                            if (itr2 == gathererToResourceMap.end())
+                              gathererToResourceMap.insert(std::make_pair(newGasGatherer, u));
+                            else
+                              itr2->second = u;
+                            //gathererToResourceMap[newGasGatherer] = u;
                             lastAddedGathererToRefinery = Broodwar->getFrameCount();
                         }
                     }
@@ -4247,7 +4256,7 @@ void ZZZKBotAIModule::onFrame()
                      // TODO: re-enable Terran_Comsat_Station after add any
                      // logic to produce cloaked units.
                      GetType == BWAPI::UnitTypes::Terran_Comsat_Station*/) &&
-                    [&u, &Broodwarg](Unit& tmpUnit)
+                    [&u, this](Unit& tmpUnit)
                     {
                         return
                             u->canAttack(tmpUnit) &&
@@ -4265,7 +4274,7 @@ void ZZZKBotAIModule::onFrame()
                                                                         112)
                                                                + 32) &&
                              tmpUnit->getClosestUnit(
-                                 Exists && GetPlayer == Broodwarg->self(),
+                                 Exists && GetPlayer == Broodwar->self(),
                                  (int) (std::max(std::max((!u->isFlying() ? tmpUnit->getPlayer()->weaponMaxRange(tmpUnit->getType().groundWeapon()) : tmpUnit->getPlayer()->weaponMaxRange(tmpUnit->getType().airWeapon())),
                                                           (!tmpUnit->isFlying() ? u->getPlayer()->weaponMaxRange(u->getType().groundWeapon()) : u->getPlayer()->weaponMaxRange(u->getType().airWeapon()))),
                                                  112))) != nullptr);
@@ -4383,12 +4392,12 @@ void ZZZKBotAIModule::onFrame()
                         Broodwar->getBestUnit(
                             getBestEnemyThreatUnitLambda,
                             IsEnemy && IsVisible && IsDetected && Exists && IsWorker &&
-                            [&u, &closestEnemyUnliftedBuildingAnywhere, &Broodwarg](Unit& tmpUnit)
+                            [&u, &closestEnemyUnliftedBuildingAnywhere, this](Unit& tmpUnit)
                             {
                                 return u->canAttack(tmpUnit) &&
                                     tmpUnit->getDistance(u) <= (int) (224 + 32) &&
-                                    tmpUnit->getDistance(closestEnemyUnliftedBuildingAnywhere) <= Broodwarg->self()->weaponMaxRange(u->getType().groundWeapon()) + 224 &&
-                                    tmpUnit->getClosestUnit(Exists && GetPlayer == Broodwarg->self(), (int) (224)) != nullptr;
+                                    tmpUnit->getDistance(closestEnemyUnliftedBuildingAnywhere) <= Broodwar->self()->weaponMaxRange(u->getType().groundWeapon()) + 224 &&
+                                    tmpUnit->getClosestUnit(Exists && GetPlayer == Broodwar->self(), (int) (224)) != nullptr;
                             },
                             u->getPosition(),
                             std::max(u->getType().dimensionLeft(), std::max(u->getType().dimensionUp(), std::max(u->getType().dimensionRight(), u->getType().dimensionDown()))) + 224 + 32);
@@ -4466,13 +4475,13 @@ void ZZZKBotAIModule::onFrame()
                              // TODO: re-enable Terran_Comsat_Station after add any
                              // logic to produce cloaked units.
                              GetType == BWAPI::UnitTypes::Terran_Comsat_Station*/) &&
-                            [&u, &closestEnemyUnliftedBuildingAnywhere, &Broodwarg](Unit& tmpUnit)
+                            [&u, &closestEnemyUnliftedBuildingAnywhere, this](Unit& tmpUnit)
                             {
                                 return
                                     u->canAttack(tmpUnit) &&
                                     (tmpUnit == closestEnemyUnliftedBuildingAnywhere ||
                                      tmpUnit->getDistance(closestEnemyUnliftedBuildingAnywhere) <=
-                                         (!tmpUnit->isFlying() ? Broodwarg->self()->weaponMaxRange(u->getType().groundWeapon()) : Broodwar->self()->weaponMaxRange(u->getType().airWeapon()))
+                                         (!tmpUnit->isFlying() ? Broodwar->self()->weaponMaxRange(u->getType().groundWeapon()) : Broodwar->self()->weaponMaxRange(u->getType().airWeapon()))
                                          + 224);
                             },
                             u->getPosition(),
@@ -4515,13 +4524,13 @@ void ZZZKBotAIModule::onFrame()
                         Broodwar->getBestUnit(
                             getBestEnemyThreatUnitLambda,
                             IsEnemy && IsVisible && IsDetected && Exists && !IsWorker &&
-                            [&u, &closestEnemyUnliftedBuildingAnywhere, &Broodwarg](Unit& tmpUnit)
+                            [&u, &closestEnemyUnliftedBuildingAnywhere, this](Unit& tmpUnit)
                             {
                                 return
                                     u->canAttack(tmpUnit) &&
                                     (tmpUnit == closestEnemyUnliftedBuildingAnywhere ||
                                      tmpUnit->getDistance(closestEnemyUnliftedBuildingAnywhere) <=
-                                         (!tmpUnit->isFlying() ? Broodwarg->self()->weaponMaxRange(u->getType().groundWeapon()) : Broodwar->self()->weaponMaxRange(u->getType().airWeapon()))
+                                         (!tmpUnit->isFlying() ? Broodwar->self()->weaponMaxRange(u->getType().groundWeapon()) : Broodwar->self()->weaponMaxRange(u->getType().airWeapon()))
                                          + 224);
                             },
                             u->getPosition(),
@@ -5126,8 +5135,18 @@ void ZZZKBotAIModule::onFrame()
                         resourceToGathererMap.erase(gathererToResourceMap.at(bestGatherer));
                     }
                 
-                    resourceToGathererMap[bestMineral] = bestGatherer;
-                    gathererToResourceMap[bestGatherer] = bestMineral;
+                    auto itr1 = resourceToGathererMap.find(bestGatherer);
+                    if (itr1 == resourceToGathererMap.end())
+                      resourceToGathererMap.insert(std::make_pair(bestMineral, bestGatherer));
+                    else
+                      itr1->second = bestGatherer;
+                    //resourceToGathererMap[bestMineral] = bestGatherer;
+                    auto itr2 = gathererToResourceMap.find(bestMineral);
+                    if (itr2 == gathererToResourceMap.end())
+                      gathererToResourceMap.insert(std::make_pair(bestGatherer, bestMineral));
+                    else
+                      itr1->second = bestMineral;
+                    //gathererToResourceMap[bestGatherer] = bestMineral;
                     continue;
                 }
             }
@@ -5173,9 +5192,19 @@ void ZZZKBotAIModule::onFrame()
                     {
                         resourceToGathererMap.erase(gathererToResourceMap.at(u));
                     }
-                
-                    resourceToGathererMap[mineralField] = u;
-                    gathererToResourceMap[u] = mineralField;
+                    
+                    auto itr1 = resourceToGathererMap.find(u);
+                    if (itr1 == resourceToGathererMap.end())
+                      resourceToGathererMap.insert(std::make_pair(mineralField, u));
+                    else
+                      itr1->second = u;
+                    //resourceToGathererMap[mineralField] = u;
+                    auto itr2 = gathererToResourceMap.find(mineralField);
+                    if (itr2 == gathererToResourceMap.end())
+                      gathererToResourceMap.insert(std::make_pair(u, mineralField));
+                    else
+                      itr2->second = mineralField;
+                    //gathererToResourceMap[u] = mineralField;
                     continue;
                 }
             }

@@ -37,7 +37,7 @@ int main(int argc, const char* argv[])
         switch (e.getType())
         {
         case BWAPI::EventType::MatchEnd:
-          bot.onEnd(e.isWinner);
+          bot.onEnd(e.isWinner());
           break;
         case BWAPI::EventType::SendText:
           bot.onSendText(e.getText());
